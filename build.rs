@@ -23,6 +23,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+
+// TODO  arm64 support need
+
 /// Generate assembly file for x86_64 trap vector
 fn gen_vector_asm() -> Result<()> {
     let out_path = PathBuf::from(std::env::var("OUT_DIR").unwrap());

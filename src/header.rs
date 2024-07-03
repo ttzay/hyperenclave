@@ -37,6 +37,7 @@ pub struct HvHeader {
     pub entry: usize,
     pub max_cpus: u32,
     pub online_cpus: u32,
+    // for arm
     pub arm_linux_hyp_vectors: u64,
     pub arm_linux_hyp_abi: u32,
     pub tpm_type: u32,
@@ -93,9 +94,13 @@ struct HvHeaderStuff {
 
 extern "C" {
     fn __entry_offset();
+    // 
     fn __core_size();
+    // 
 }
 
+
+// TODO arm linux hyp abi 等初始化
 #[used]
 #[link_section = ".header"]
 static HEADER_STUFF: HvHeaderStuff = HvHeaderStuff {

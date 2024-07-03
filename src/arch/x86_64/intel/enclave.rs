@@ -24,6 +24,7 @@ use crate::memory::addr::align_down;
 use super::ept::EPTInstr;
 
 impl VcpuAccessEnclaveState for Vcpu {
+    // 从VCPU中加载加密域线程状态
     fn load_enclave_thread_state(&self) -> HvResult<EnclaveThreadState> {
         Ok(EnclaveThreadState {
             rflags: self.rflags(),

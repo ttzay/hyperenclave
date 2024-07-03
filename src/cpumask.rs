@@ -17,13 +17,18 @@ use crate::HvResult;
 
 use core::mem::size_of;
 
+// NR_CPUS：最大支持的CPU数量，设置为512
 const NR_CPUS: usize = 512;
+// BITS_PER_BYTE：每个字节的位数，设置为8
 const BITS_PER_BYTE: usize = 8;
+// BITS_PER_USIZE：每个usize的位数，设置为8 * usize的字节数
 const BITS_PER_USIZE: usize = size_of::<usize>() * BITS_PER_BYTE;
+// CPU_MASK_LEN：CPU掩码的长度，设置为NR_CPUS / BITS_PER_USIZE
 pub const CPU_MASK_LEN: usize = (NR_CPUS + BITS_PER_USIZE - 1) / BITS_PER_USIZE;
 
 #[repr(C)]
 #[derive(Debug, Default)]
+// 定义了一个CpuMask结构体，包含一个长度为CPU_MASK_LEN的usize数组
 pub struct CpuMask([usize; CPU_MASK_LEN]);
 
 impl CpuMask {

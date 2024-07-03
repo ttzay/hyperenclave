@@ -15,6 +15,9 @@
 #   SME = on | off              [ amd only] Enable AMD Secure Memory Encryption.
 #   INTR = on | off             Enable interrupts during enclaves running.
 
+
+# TODO add arm64 support
+
 ECHO := /bin/echo -e
 CYAN := \033[1;36m
 GREEN := \033[1;32m
