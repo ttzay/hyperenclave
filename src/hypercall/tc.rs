@@ -35,6 +35,8 @@ use spin::mutex::SpinMutex;
 use yogcrypt::sm2::*;
 use yogcrypt::sm3::sm3_enc;
 
+
+// 声明一些外部C函数，用于与TPM进行交互、获取和管理密钥、生成和验证报告等
 extern "C" {
     fn tpm_detect(tpm_type: uint32_t, mmio_va: uint64_t) -> bool;
     fn he_get_secret() -> bool;
@@ -61,6 +63,7 @@ extern "C" {
 
 pub fn tc_init() -> bool {
     unsafe {
+        // 初始化TPM和根密钥
         //he_gen_ak_ex();
         if !tpm_detect(
             HvHeader::get().tpm_type,

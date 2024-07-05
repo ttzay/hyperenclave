@@ -252,6 +252,7 @@ name = "rust-hypervisor"
 version = "0.1.0"
 dependencies = [
  "aarch64",
+ "aarch64-cpu",
  "bit_field 0.10.1",
  "bitflags",
  "bitmap-allocator",

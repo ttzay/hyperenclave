@@ -36,6 +36,13 @@ pub struct LinuxContext {
     pub rbx: u64,
     pub rbp: u64,
 
+    /*
+        CS: 代码段寄存器（Code Segment），指向代码段的基址。
+        DS: 数据段寄存器（Data Segment），指向数据段的基址。
+        SS: 堆栈段寄存器（Stack Segment），指向堆栈段的基址。
+        ES, FS, GS: 额外段寄存器，用于指向额外的数据段或特定用途。
+
+     */
     pub cs: Segment,
     pub ds: Segment,
     pub es: Segment,
