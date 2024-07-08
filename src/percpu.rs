@@ -38,9 +38,9 @@ static ACTIVATED_CPUS: AtomicIsize = AtomicIsize::new(0);
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CpuState {
-    HvDisabled,
-    HvEnabled,
-    EnclaveRunning,
+    HvDisabled,// hypervisor is disabled
+    HvEnabled, // hypervisor is enabled
+    EnclaveRunning,// enclave is running
 }
 
 #[repr(align(4096))]
