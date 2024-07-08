@@ -169,6 +169,12 @@ bitflags! {
 
 pub struct CpuFeatures {
     cpuid: CpuId,
+    // pub struct CpuId {
+    // read: CpuIdReader,
+    // vendor: Vendor,
+    // supported_leafs: u32,
+    // supported_extended_leafs: u32,
+    //}
 }
 
 impl CpuFeatures {
