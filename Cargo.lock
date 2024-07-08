@@ -268,6 +268,7 @@ dependencies = [
  "sha2",
  "spin 0.9.8",
  "static_assertions",
+ "tock-registers",
  "uart_16550",
  "x86",
  "x86_64",

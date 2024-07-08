@@ -26,45 +26,47 @@ const SAVED_LINUX_REGS: usize = 7;
 
 #[derive(Debug)]
 pub struct LinuxContext {
-    pub rsp: u64,
-    pub rip: u64,
 
-    pub r15: u64,
-    pub r14: u64,
-    pub r13: u64,
-    pub r12: u64,
-    pub rbx: u64,
-    pub rbp: u64,
+    // 用在percpu位置，CPU的寄存器状态
+    pub rsp: u64, // 栈指针寄存器，指向当前堆栈的顶部。
+    pub rip: u64, // 指令指针寄存器，存储下一条将要执行的指令地址。
+
+    pub r15: u64, // 通用寄存器r15，用于保存临时数据。
+    pub r14: u64, // 通用寄存器r14，用于保存临时数据。
+    pub r13: u64, // 通用寄存器r13，用于保存临时数据。
+    pub r12: u64, // 通用寄存器r12，用于保存临时数据。
+    pub rbx: u64, // 基址寄存器，通常用于保存指针或计数器。
+    pub rbp: u64, // 基址指针寄存器，指向当前栈帧的基址。
 
     /*
         CS: 代码段寄存器（Code Segment），指向代码段的基址。
         DS: 数据段寄存器（Data Segment），指向数据段的基址。
         SS: 堆栈段寄存器（Stack Segment），指向堆栈段的基址。
         ES, FS, GS: 额外段寄存器，用于指向额外的数据段或特定用途。
-
      */
-    pub cs: Segment,
-    pub ds: Segment,
-    pub es: Segment,
-    pub fs: Segment,
-    pub gs: Segment,
-    pub tss: Segment,
-    pub gdt: DescriptorTablePointer,
-    pub idt: DescriptorTablePointer,
+    pub cs: Segment, // 代码段寄存器，指向代码段的基址。
+    pub ds: Segment, // 数据段寄存器，指向数据段的基址。
+    pub es: Segment, // 额外段寄存器，指向额外的数据段。
+    pub fs: Segment, // 额外段寄存器，常用于线程本地存储。
+    pub gs: Segment, // 额外段寄存器，常用于内核数据结构。
+    pub tss: Segment, // 任务状态段寄存器，包含任务切换相关信息。
+    pub gdt: DescriptorTablePointer, // 全局描述符表指针，指向全局描述符表。
+    pub idt: DescriptorTablePointer, // 中断描述符表指针，指向中断描述符表。
 
-    pub cr0: Cr0Flags,
-    pub cr3: u64,
-    pub cr4: Cr4Flags,
+    pub cr0: Cr0Flags, // 控制寄存器0，控制CPU的操作模式。
+    pub cr3: u64, // 控制寄存器3，包含页目录的物理地址，用于内存分页。
+    pub cr4: Cr4Flags, // 控制寄存器4，控制各种扩展功能。
 
-    pub efer: u64,
-    pub lstar: u64,
-    pub pat: u64,
-    pub kernel_gsbase: u64,
-    pub star: u64,
-    pub cstar: u64,
-    pub fmask: u64,
-    pub mtrr_def_type: u64,
+    pub efer: u64, // 扩展功能寄存器，用于启用64位模式等。
+    pub lstar: u64, // 系统调用目标地址寄存器。
+    pub pat: u64, // 页属性表寄存器，控制内存页的缓存属性。
+    pub kernel_gsbase: u64, // GS段寄存器的基址，用于内核模式。
+    pub star: u64, // 系统调用相关寄存器。
+    pub cstar: u64, // 兼容模式下的系统调用目标地址寄存器。
+    pub fmask: u64, // 系统调用屏蔽位寄存器。
+    pub mtrr_def_type: u64, // 内存类型范围寄存器的默认类型。
 }
+
 
 #[repr(C)]
 #[derive(Debug, Default)]

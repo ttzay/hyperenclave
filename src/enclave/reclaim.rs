@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+/// TODO 加密位置
+///
 #[cfg(feature = "sme")]
 use crate::arch::vmm::{EncHW, HmacSWEncHW};
 use crate::arch::GuestPageTableImmut;
@@ -238,6 +241,7 @@ impl VaSlot {
     }
 }
 
+// TODO 加密的接口，後期在此加上ARM的硬件加密方法
 #[derive(Debug)]
 pub enum CryptoAlgType {
     HmacSWEncHW,

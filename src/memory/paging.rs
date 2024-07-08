@@ -76,6 +76,7 @@ numeric_enum! {
 }
 
 impl PageTableLevel {
+    // define 最大四級頁表
     pub const fn max_level() -> usize {
         Self::L4 as usize
     }

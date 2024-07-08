@@ -35,6 +35,7 @@ enum PtrType<'a> {
     Secure(&'a Arc<Enclave>),
 }
 
+
 impl<'a> PtrType<'a> {
     fn is_secure(&self) -> bool {
         match self {
