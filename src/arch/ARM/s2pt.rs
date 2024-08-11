@@ -17,7 +17,7 @@ bitflags::bitflags! {
 
 
     /// Memory attribute fields in the VMSAv8-64 translation table format descriptors.
-    pub struct DescriptorAttr: u64 {
+    pub struct S2PTDescriptorAttr: u64 {
         // Attribute fields in stage 2 VMSAv8-64 Block and Page descriptors:
 
         /// Whether the descriptor is valid.
@@ -68,7 +68,7 @@ enum MemType {
 }
 
 
-impl DescriptorAttr {
+impl S2PTDescriptorAttr {
     const ATTR_INDEX_MASK:u64  =0b1111_00;
 
 

@@ -2,6 +2,7 @@ use core::fmt;
 use crate::memory::PagingResult;
 use crate::memory::{GenericPTE, MemFlags, PageTableLevel, PagingInstr, PhysAddr, VirtAddr};
 use crate::memory::{Level4PageTable, Level4PageTableImmut, Level4PageTableUnlocked};
+use crate::memory::PAGE_SIZE;
 
 
 bitflags::bitflags! {
@@ -83,48 +84,162 @@ impl DescriptorAttr {
     }
 }
 
-
-//
 impl From<DescriptorAttr> for MemFlags {
+    // GPT  对比 MemFlags 和 DescriptorAttr
+    // MemFlags	DescriptorAttr	说明
+    // READ         隐含在 VALID 和 AP	DescriptorAttr 中没有直接的 READ 标志，但有效的页通常可读，这由 VALID 和访问权限决定。
+    // WRITE	    AP_RO（反向）	    MemFlags 中的 WRITE 与 DescriptorAttr 中的 AP_RO 相反，后者用于标记只读。
+    // EXECUTE	    UXN/PXN（反向）	    MemFlags 中的 EXECUTE 与 DescriptorAttr 中的 UXN 和 PXN 相反，后者用于禁止执行。
+    // DMA	        无直接对应	        DMA 用于标记页面是否参与直接内存访问，DescriptorAttr 中无直接标志，但可通过缓存策略影响。
+    // IO	        无直接对应	        用于标记页面参与 I/O 操作，通常与设备映射有关。
+    // COMM_REGION	无直接对应	        用于标记内存用于通信，可能与共享属性有关。
+    // NO_HUGEPAGES	NON_BLOCK（反向）	NO_HUGEPAGES 防止使用大页面，NON_BLOCK 标记页面而不是块。
+    // USER	        AP_EL0	            MemFlags的 USER标志类似于 DescriptorAttr 的 AP_EL0，用于用户模式的访问控制。
+    // ENCRYPTED	无直接对应	        ENCRYPTED 用于指示页面加密，DescriptorAttr 中没有直接等效的标志。
+    // NO_PRESENT	VALID（反向）	    NO_PRESENT 指示页面不在内存中，VALID 标志用于检查页面是否有效。
+    // 详细比较说明
+    // 读权限：在 DescriptorAttr 中，页面是否可读主要由页面是否有效（VALID）以及是否具有合适的访问权限（AP）来决定，而 MemFlags 中有显式的 READ 标志。
+    // 写权限：DescriptorAttr 使用 AP_RO 标志来指定只读，若未设置该标志则页面可写，而 MemFlags 使用 WRITE 来明确指定页面是否可写。
+    // 执行权限：DescriptorAttr 使用 UXN（用户模式不可执行）和 PXN（特权模式不可执行）来控制执行权限，而 MemFlags 中有直接的 EXECUTE 标志用于允许执行。
+    // 用户访问：DescriptorAttr 中的 AP_EL0 控制页面是否可以被用户模式访问，这与 MemFlags 中的 USER 类似，都是为了限制页面的访问级别
+    // 大页面控制：MemFlags 的 NO_HUGEPAGES 标志用于防止使用大页面，而 DescriptorAttr 的 NON_BLOCK 用于指示非块（即小页面），功能上有些重叠。
+    // 其他特性：MemFlags 中的一些标志（如 DMA、IO、COMM_REGION、ENCRYPTED）主要用于软件层次的内存管理，没有直接对应的硬件层面标志。DescriptorAttr 专注于硬件层面，主要管理内存页面的属性和安全性。
     fn from(attr: DescriptorAttr) -> Self {
-        let mem_flags = MemFlags::empty();
-
-        // TODO 处理 MemFlags 与 DescriptorAttr 的关系
-        if attr.contains(DescriptorAttr::AF) {
-            mem_flags |= MemFlags::READ;  // 假设AF对应READ
+        let mut flags = Self::empty();
+        if !attr.contains(DescriptorAttr::VALID) {
+            flags |= Self::NO_PRESENT;
+        } else {
+            flags |= Self::READ;
+            if !attr.contains(DescriptorAttr::AP_RO) {
+                flags |= Self::WRITE;
+            }
+            if attr.contains(DescriptorAttr::AP_EL0) {
+                flags |= Self::USER;
+                if !attr.contains(DescriptorAttr::UXN) {
+                    flags |= Self::EXECUTE;
+                }
+            } else if !attr.intersects(DescriptorAttr::PXN) {
+                flags |= Self::EXECUTE;
+            }
         }
-        if attr.contains(DescriptorAttr::AP_RO) {
-            mem_flags |= MemFlags::WRITE;  // 假设AP_RO对应WRITE
-        }
-        if attr.contains(DescriptorAttr::UXN) {
-            mem_flags |= MemFlags::EXECUTE;  // 假设UXN对应EXECUTE
-        }
-        if attr.contains(DescriptorAttr::NS) {
-            mem_flags |= MemFlags::DMA;  // 假设NS对应DMA
-        }
-        if attr.contains(DescriptorAttr::SHAREABLE) {
-            mem_flags |= MemFlags::IO;  // 假设SHAREABLE对应IO
-        }
-        if attr.contains(DescriptorAttr::INNER) {
-            mem_flags |= MemFlags::COMM_REGION;  // 假设INNER对应COMM_REGION
-        }
-        if attr.contains(DescriptorAttr::CONTIGUOUS) {
-            mem_flags |= MemFlags::NO_HUGEPAGES;  // 假设CONTIGUOUS对应NO_HUGEPAGES
-        }
-        if attr.contains(DescriptorAttr::AP_EL0) {
-            mem_flags |= MemFlags::USER;  // 假设AP_EL0对应USER
-        }
-        if attr.contains(DescriptorAttr::PXN) {
-            mem_flags |= MemFlags::ENCRYPTED;  // 假设PXN对应ENCRYPTED
-        }
-        if attr.contains(DescriptorAttr::VALID) {
-            mem_flags |= MemFlags::NO_PRESENT;  // 假设VALID对应NO_PRESENT
-        }
-
-        mem_flags
+        flags
     }
 }
 
+pub struct PTEntry(u64);
+
+// PAGE_SIZE which could change
+const PHYS_ADDR_MASK: usize = 0xffff_ffff_ffff & !(PAGE_SIZE - 1); //
+
+
+impl GenericPTE for PTEntry {
+    /// Returns the physical address mapped by this entry.
+    fn addr(&self) -> PhysAddr {
+        (self.0 & PHYS_ADDR_MASK) as PhysAddr
+    }
+    /// Returns the flags of this entry.
+    fn flags(&self) -> MemFlags {
+        /// Returns whether this entry is zero.
+        //PTF::from_bits_truncate(self.0).into()
+        DescriptorAttr::from_bits_truncate(self.0).into()
+    }
+    /// Returns whether this entry is zero.
+    fn is_unused(&self) -> bool{
+        self.0  ==  0
+    }
+    /// Returns whether this entry flag indicates present.
+    fn is_present(&self) -> bool{
+        self.0 & DescriptorAttr::VALID.bits() != 0
+    }
+    /// Returns whether this entry maps to a huge frame (terminate page translation).
+    fn is_leaf(&self) -> bool {
+        !DescriptorAttr::from_bits_truncate(self.0).contains(DescriptorAttr::NON_BLOCK)
+    }
+    /// Returns whether this entry's ACCESSED bit is set.
+    fn is_young(&self) -> bool{
+        self.0 & DescriptorAttr::AF.bits() != 0        
+    }
+
+    /// Mark the PTE as non-ACCESSED.
+    fn set_old(&mut self){
+        let flags = !DescriptorAttr::AF;
+        self.0 &= flags.bits() | PHYS_ADDR_MASK as u64;
+    }
+    /// Set physical address for terminal entries.
+    fn set_addr(&mut self, paddr: PhysAddr){
+        // TODO check this
+        self.0 = (self.0 & !PHYS_ADDR_MASK as u64) | (paddr as u64 & PHYS_ADDR_MASK as u64);
+    }
+    /// Set flags for terminal entries.
+    fn set_flags(&mut self, flags: MemFlags, is_huge: bool) -> PagingResult{
+        // TODO check this
+        let mut attr = DescriptorAttr::from(flags);
+        if is_huge {
+            attr.remove(DescriptorAttr::NON_BLOCK);
+        } else {
+            attr.insert(DescriptorAttr::NON_BLOCK);
+        }
+        self.0 = attr.bits() | (self.0 & PHYS_ADDR_MASK as u64);
+        Ok(())
+    }
+    /// Set physical address and flags for intermediate entry,
+    /// `is_present` controls whether to setting its P bit.
+    fn set_table(
+        &mut self,
+        paddr: PhysAddr,
+        next_level: PageTableLevel,
+        is_present: bool,
+    ) -> PagingResult{
+        // TODO
+    }
+    /// Mark the intermediate or terminal entry as present (or valid), its other parts remain unchanged.
+    fn set_present(&mut self) -> PagingResult{
+        // TODO
+    }
+    /// Mark the intermediate or terminal entry as non-present (or invalid), its other parts remain unchanged.
+    fn set_notpresent(&mut self) -> PagingResult{
+        // TODO
+    }
+    /// Set this entry to zero.
+    fn clear(&mut self){
+        // TODO
+    }
+}
+
+
+impl fmt::Debug for PTEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Stage1PageTableEntry")
+            .field("raw", &self.0)
+            .field("paddr", &self.addr())
+            .field("attr", &DescriptorAttr::from_bits_truncate(self.0))
+            .field("flags", &self.pt_flags())
+            .field("memory_type", &self.memory_type())
+            .finish()
+    }
+}
+
+pub struct S1PTInstr;
+
+impl PagingInstr for S1PTInstr {
+    unsafe fn activate(root_paddr: PhysAddr){
+        // TODO need to check this
+        // why this need EL2
+        TTBR0_EL2.set(root_paddr as _);
+        core::arch::asm!("isb");
+        core::arch::asm!("tlbi alle2");
+        core::arch::asm!("dsb nsh");
+
+    }
+    fn flush(vaddr: Option<VirtAddr>){
+        // do nothing
+    }
+
+}
+
+pub type PageTable = Level4PageTable<VirtAddr, PTEntry, S1PTInstr>;
+pub type PageTableImmut = Level4PageTableImmut<VirtAddr, PTEntry>;
+pub type EnclaveGuestPageTableUnlocked = Level4PageTableUnlocked<VirtAddr, PTEntry, S1PTInstr>;
 
 
 
